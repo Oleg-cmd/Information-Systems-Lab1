@@ -1,44 +1,60 @@
 package com.example.system.entities;
+
 import jakarta.persistence.*;
 import javax.validation.constraints.*;
 
 @Entity
 @Table(name = "persons")
-public class Person {  
+public class Person {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;    
+    private Integer id;
 
     @NotNull
     @NotBlank
     @Column(name = "name", nullable = false)
-    private String name; // Поле не может быть null, Строка не может быть пустой
+    private String name;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "eye_color")
-    private Color eyeColor; // Поле может быть null
+    private Color eyeColor;
 
     @NotNull
     @Enumerated(EnumType.STRING)
     @Column(name = "hair_color", nullable = false)
-    private Color hairColor; // Поле не может быть null
+    private Color hairColor;
 
     @NotNull
     @ManyToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "location_id", nullable = false)
-    private Location location; // Поле не может быть null
+    private Location location;
 
     @Column(name = "birthday")
-    private java.util.Date birthday; // Поле может быть null
+    private java.util.Date birthday;
 
     @NotNull
     @Enumerated(EnumType.STRING)
     @Column(name = "nationality", nullable = false)
-    private Country nationality; // Поле не может быть null
+    private Country nationality;
 
-    // Конструкторы, геттеры и сеттеры
+    @Transient // Временное поле для создания новой локации
+    private Location createLocation;
 
-    public Person() {}
+    @Transient // Временное поле для привязки к существующей локации
+    private Integer linkLocationId;
+
+    @Column(name = "created_by", nullable = false)
+    private Integer createdBy; // ID пользователя, создавшего адрес
+
+    // Геттеры и сеттеры
+    public Integer getId() {
+        return id;
+    }
+
+    public void setId(Integer id) {
+        this.id = id;
+    }
 
     public String getName() {
         return name;
@@ -86,5 +102,29 @@ public class Person {
 
     public void setNationality(Country nationality) {
         this.nationality = nationality;
+    }
+
+    public Location getCreateLocation() {
+        return createLocation;
+    }
+
+    public void setCreateLocation(Location createLocation) {
+        this.createLocation = createLocation;
+    }
+
+    public Integer getLinkLocationId() {
+        return linkLocationId;
+    }
+
+    public void setLinkLocationId(Integer linkLocationId) {
+        this.linkLocationId = linkLocationId;
+    }
+
+    public Integer getCreatedBy() {
+        return createdBy;
+    }
+
+    public void setCreatedBy(Integer createdBy) {
+        this.createdBy = createdBy;
     }
 }

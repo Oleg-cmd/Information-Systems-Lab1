@@ -5,6 +5,9 @@ import com.example.system.entities.User;
 import com.example.system.exceptions.ResourceNotFoundException;
 import com.example.system.repositories.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,11 +20,13 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuthenticationManager authenticationManager;
 
     @Autowired
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, AuthenticationManager authenticationManager) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.authenticationManager = authenticationManager;
     }
 
     public User createUser(User user) {
@@ -30,7 +35,7 @@ public class UserService {
         }
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         if (user.getRole() == User.Role.ADMIN) {
-            user.setApproved(false); // Новые администраторы не утверждены по умолчанию
+            user.setApproved(false);
         } else {
             user.setApproved(true);
         }
@@ -62,28 +67,21 @@ public class UserService {
     }
 
     public User findByUsername(String username) {
-        return userRepository.findByUsername(username).orElse(null);
+        return userRepository.findByUsername(username).orElseThrow(() ->
+                new ResourceNotFoundException("Пользователь с именем " + username + " не найден"));
     }
 
-    public User authenticate(String username, String password) {
-        // Try to find the user by username
-        User user = userRepository.findByUsername(username)
-                .orElseGet(() -> {
-                    // If user doesn't exist, create a new one
-                    User newUser = new User();
-                    newUser.setUsername(username);
-                    newUser.setPassword(password); // Set the password, will be encoded later
-                    newUser.setRole(User.Role.USER); // Default to USER role
-                    newUser.setApproved(true); // Automatically approve new users
-                    return createUser(newUser); // Save the new user
-                });
+    public Authentication authenticate(String username, String password) {
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(username, password)
+        );
+        return authentication;
+    }
 
-        // Validate the password
-        if (passwordEncoder.matches(password, user.getPassword())) {
-            return user;
-        } else {
-            throw new IllegalArgumentException("Неверный пароль");
-        }
+    public User approveUser(Integer id, boolean approve) {
+        User user = getUserById(id);
+        user.setApproved(approve);
+        return userRepository.save(user);
     }
 
     public List<Product> findProductsByUserId(Integer userId) {
@@ -94,10 +92,9 @@ public class UserService {
                 .toList();
     }
 
-    
-    public User approveUser(Integer id, boolean approve) {
-        User user = getUserById(id);
-        user.setApproved(approve);
-        return userRepository.save(user);
+    public List<User> getPendingAdmins() {
+        return userRepository.findAll().stream()
+                .filter(user -> user.getRole() == User.Role.ADMIN && !user.isApproved())
+                .toList();
     }
 }

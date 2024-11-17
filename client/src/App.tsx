@@ -4,30 +4,27 @@ import {
   Routes,
   Navigate,
 } from "react-router-dom";
-import ProductPage from "./pages/ProductPage";
-import LoginPage from "./pages/LoginPage";
-import userStore from "./stores/UserStore";
+
 import { observer } from "mobx-react-lite";
+import { AuthPage } from "./pages/auth.page";
+import { MainPage } from "./pages/main.page";
 
 const App = observer(() => {
   return (
     <Router>
       <Routes>
         <Route
-          path='/login'
-          element={
-            userStore.isAuthenticated ? <Navigate to='/' /> : <LoginPage />
-          }
+          path='/'
+          element={<MainPage />}
         />
         <Route
-          path='/'
-          element={
-            userStore.isAuthenticated ? (
-              <ProductPage />
-            ) : (
-              <Navigate to='/login' />
-            )
-          }
+          path='/login'
+          element={<AuthPage />}
+        />
+        {/* Перенаправление на логин для всех неизвестных маршрутов */}
+        <Route
+          path='*'
+          element={<Navigate to='/login' />}
         />
       </Routes>
     </Router>

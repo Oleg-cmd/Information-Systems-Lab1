@@ -10,16 +10,21 @@ import com.example.system.implementations.UserDetailsImpl;
 import javax.crypto.SecretKey;
 import java.util.Date;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 @Component
 public class JwtUtils {
 
-    private final SecretKey secretKey = Keys.secretKeyFor(SignatureAlgorithm.HS512); 
+    private static final Logger logger = LoggerFactory.getLogger(JwtUtils.class);
+
+    private final SecretKey secretKey = Keys.secretKeyFor(SignatureAlgorithm.HS512);
 
     public String generateJwtToken(Authentication authentication) {
         UserDetailsImpl userPrincipal = (UserDetailsImpl) authentication.getPrincipal();
 
         return Jwts.builder()
-                .setSubject((userPrincipal.getUsername()))
+                .setSubject(userPrincipal.getUsername())
                 .setIssuedAt(new Date())
                 .setExpiration(new Date((new Date()).getTime() + 86400000)) // 1 day expiry
                 .signWith(secretKey)
@@ -32,19 +37,21 @@ public class JwtUtils {
     }
 
     public boolean validateJwtToken(String authToken) {
-        try {
-            Jwts.parserBuilder().setSigningKey(secretKey).build().parseClaimsJws(authToken);
-            return true;
-        } catch (MalformedJwtException e) {
-            System.err.println("Invalid JWT token: {}" + e.getMessage());
-        } catch (ExpiredJwtException e) {
-            System.err.println("JWT token is expired: {}" + e.getMessage());
-        } catch (UnsupportedJwtException e) {
-            System.err.println("JWT token is unsupported: {}" + e.getMessage());
-        } catch (IllegalArgumentException e) {
-            System.err.println("JWT claims string is empty: {}" + e.getMessage());
-        }
-
-        return false;
+    try {
+        Jwts.parserBuilder().setSigningKey(secretKey).build().parseClaimsJws(authToken);
+        return true;
+    } catch (ExpiredJwtException e) {
+        logger.error("JWT token is expired: {}", e.getMessage());
+    } catch (UnsupportedJwtException e) {
+        logger.error("JWT token is unsupported: {}", e.getMessage());
+    } catch (MalformedJwtException e) {
+        logger.error("JWT token is malformed: {}", e.getMessage());
+    } catch (SignatureException e) {
+        logger.error("Invalid JWT signature: {}", e.getMessage());
+    } catch (IllegalArgumentException e) {
+        logger.error("JWT token is empty: {}", e.getMessage());
     }
+    return false;
+}
+
 }

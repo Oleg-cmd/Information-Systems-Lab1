@@ -14,6 +14,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 
 public class UserDetailsImpl implements UserDetails {
   private static final long serialVersionUID = 1L;
+  private boolean approved; 
 
   private Integer id;
   private String username;
@@ -25,12 +26,13 @@ public class UserDetailsImpl implements UserDetails {
 
   private Collection<? extends GrantedAuthority> authorities;
 
-  public UserDetailsImpl(Integer id, String username, String password, String role,
+  public UserDetailsImpl(Integer id, String username, String password, String role, boolean approved,
       Collection<? extends GrantedAuthority> authorities) {
     this.id = id;
     this.username = username;
     this.password = password;
     this.role = role;
+    this.approved = approved;
     this.authorities = authorities;
   }
 
@@ -42,6 +44,7 @@ public class UserDetailsImpl implements UserDetails {
         user.getUsername(), 
         user.getPassword(),
         user.getRole().toString(),
+        user.isApproved(),
         authorities);
   }
 
@@ -87,6 +90,11 @@ public class UserDetailsImpl implements UserDetails {
   public boolean isEnabled() {
     return true;
   }
+
+  public boolean isApproved() {
+    return approved;
+  }
+
 
   @Override
   public boolean equals(Object o) {

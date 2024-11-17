@@ -2,11 +2,21 @@ package com.example.system.services;
 
 import com.example.system.entities.Product;
 import com.example.system.entities.UnitOfMeasure;
+import com.example.system.entities.User;
+import com.example.system.entities.Address;
+import com.example.system.entities.Organization;
+import com.example.system.entities.Person;
+import com.example.system.exceptions.ForbiddenOperationException;
 import com.example.system.exceptions.ResourceNotFoundException;
 import com.example.system.repositories.ProductRepository;
+import com.example.system.repositories.PersonRepository;
+import com.example.system.repositories.UserRepository;
+import com.example.system.repositories.OrganizationRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.example.system.repositories.*;
+
 
 import java.util.List;
 
@@ -15,13 +25,31 @@ import java.util.List;
 public class ProductService {
 
     private final ProductRepository productRepository;
+    private final OrganizationRepository organizationRepository;
+    private final PersonRepository personRepository;
+    private final UserRepository userRepository;
+    private final LocationRepository locationRepository;
+    private final AddressRepository addressRepository;
+
 
     @Autowired
-    public ProductService(ProductRepository productRepository) {
+    public ProductService(ProductRepository productRepository,
+                          OrganizationRepository organizationRepository,
+                          PersonRepository personRepository,
+                          UserRepository userRepository,
+                          LocationRepository locationRepository,
+                          AddressRepository addressRepository
+                          ) {
         this.productRepository = productRepository;
+        this.organizationRepository = organizationRepository;
+        this.personRepository = personRepository;
+        this.userRepository = userRepository;
+        this.locationRepository = locationRepository;
+        this.addressRepository = addressRepository;
     }
 
-    public Product createProduct(Product product) {
+    public Product createProduct(Product product, Integer currentUserId) {
+        product.setCreatedBy(currentUserId); // Set creator ID
         validateProduct(product);
         return productRepository.save(product);
     }
@@ -35,10 +63,13 @@ public class ProductService {
                 .orElseThrow(() -> new ResourceNotFoundException("Продукт с ID " + id + " не найден"));
     }
 
-    public Product updateProduct(Integer id, Product updatedProduct) {
+    public Product updateProduct(Integer id, Product updatedProduct, Integer currentUserId) {
         validateProduct(updatedProduct);
         return productRepository.findById(id)
                 .map(product -> {
+                    if (!product.getCreatedBy().equals(currentUserId) && !isAdmin(currentUserId)) {
+                        throw new ForbiddenOperationException("У вас нет прав для изменения этого продукта.");
+                    }
                     product.setName(updatedProduct.getName());
                     product.setCoordinates(updatedProduct.getCoordinates());
                     product.setUnitOfMeasure(updatedProduct.getUnitOfMeasure());
@@ -53,12 +84,85 @@ public class ProductService {
                 .orElseThrow(() -> new ResourceNotFoundException("Продукт с ID " + id + " не найден"));
     }
 
-    public void deleteProduct(Integer id) {
+    public void deleteProduct(Integer id, Integer currentUserId) {
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Продукт с ID " + id + " не найден"));
+
+        if (!product.getCreatedBy().equals(currentUserId) && !isAdmin(currentUserId)) {
+            throw new ForbiddenOperationException("У вас нет прав для удаления этого продукта.");
+        }
+
+        // Проверяем владельца продукта (Person)
+        Person owner = product.getOwner();
+        boolean shouldDeleteOwner = false;
+        boolean shouldDeleteOwnerLocation = false;
+
+        if (owner != null) {
+            shouldDeleteOwner = productRepository.countByOwnerId(owner.getId()) == 1;
+            if (shouldDeleteOwner && owner.getLocation() != null) {
+                shouldDeleteOwnerLocation = locationRepository.countPersonsLinkedToLocation(owner.getLocation().getId()) == 1 &&
+                                            locationRepository.countOrganizationsLinkedToLocation(owner.getLocation().getId()) == 0;
+            }
+        }
+
+        // Проверяем производителя продукта (Organization)
+        Organization manufacturer = product.getManufacturer();
+        boolean shouldDeleteManufacturer = false;
+        boolean shouldDeleteOfficialAddress = false;
+        boolean shouldDeletePostalAddress = false;
+
+        Address officialAddress = null;
+        Address postalAddress = null;
+
+        if (manufacturer != null) {
+            shouldDeleteManufacturer = productRepository.countByManufacturerId(manufacturer.getId()) == 1;
+            if (shouldDeleteManufacturer) {
+                officialAddress = manufacturer.getOfficialAddress();
+                postalAddress = manufacturer.getPostalAddress();
+
+                if (officialAddress != null) {
+                    shouldDeleteOfficialAddress = organizationRepository.countByAddressId(officialAddress.getId()) == 1 &&
+                                                addressRepository.countProductsLinkedToAddress(officialAddress.getId()) == 0;
+                }
+                if (postalAddress != null) {
+                    shouldDeletePostalAddress = organizationRepository.countByAddressId(postalAddress.getId()) == 1 &&
+                                                addressRepository.countProductsLinkedToAddress(postalAddress.getId()) == 0;
+                }
+            }
+        }
+
+        // Убираем связи с продуктом
+        product.setOwner(null);
+        product.setManufacturer(null);
+        productRepository.save(product);
+
+        // Удаляем сам продукт
         productRepository.deleteById(id);
+
+        // Удаляем владельца, если нужно
+        if (shouldDeleteOwner) {
+            if (shouldDeleteOwnerLocation) {
+                locationRepository.deleteById(owner.getLocation().getId());
+            }
+            personRepository.deleteById(owner.getId());
+        }
+
+        // Удаляем производителя, если нужно
+        if (shouldDeleteManufacturer) {
+            if (shouldDeleteOfficialAddress) {
+                addressRepository.deleteById(officialAddress.getId());
+            }
+            if (shouldDeletePostalAddress) {
+                addressRepository.deleteById(postalAddress.getId());
+            }
+            organizationRepository.deleteById(manufacturer.getId());
+        }
     }
 
-    // Специальные операции:
 
+
+
+     // Special operations:
     public long countByPartNumber(String partNumber) {
         return productRepository.countByPartNumber(partNumber);
     }
@@ -74,7 +178,10 @@ public class ProductService {
     public List<Product> findByUnitOfMeasure(UnitOfMeasure unitOfMeasure) {
         return productRepository.findByUnitOfMeasure(unitOfMeasure);
     }
-    
+
+
+    // Остальные методы остаются без изменений
+
     private void validateProduct(Product product) {
         if (product.getName() == null || product.getName().isEmpty()) {
             throw new IllegalArgumentException("Название продукта не может быть пустым");
@@ -100,9 +207,12 @@ public class ProductService {
         if (product.getPartNumber() != null && (product.getPartNumber().isEmpty() || product.getPartNumber().length() < 15)) {
             throw new IllegalArgumentException("Part Number продукта не может быть пустым и должен быть не менее 15 символов");
         }
-        // Проверка уникальности Part Number (необязательно, если это контролируется на уровне базы данных)
-        // if (product.getPartNumber() != null && productRepository.existsByPartNumber(product.getPartNumber())) {
-        //     throw new IllegalArgumentException("Part Number продукта должен быть уникальным");
-        // }
+    }
+
+    private boolean isAdmin(Integer userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Пользователь с ID " + userId + " не найден"));
+
+        return user.getRole() == User.Role.ADMIN && user.isApproved();
     }
 }

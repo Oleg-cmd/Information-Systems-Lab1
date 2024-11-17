@@ -58,37 +58,36 @@ public class WebSecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
-    @Bean
+   @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
-            .cors(cors -> cors.configurationSource(corsConfigurationSource())) // Включаем CORS
+            .cors(cors -> cors.configurationSource(corsConfigurationSource())) // Включаем CORS с настройками
             .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/test/**").permitAll()
+                .requestMatchers("/**").permitAll()
                 .anyRequest().authenticated()
             );
 
         http.authenticationProvider(authenticationProvider());
-
         http.addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
-    // Конфигурация CORS
-    @Bean
+   @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000")); // Замените на адрес вашего фронтенда
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("*"));
-        configuration.setAllowCredentials(true); // Если нужно
+            CorsConfiguration configuration = new CorsConfiguration();
+            configuration.setAllowedOriginPatterns(Arrays.asList("http://localhost:3000", "https://94e8-178-252-127-225.ngrok-free.app")); // Укажите конкретный фронтенд-домен
+            configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+            configuration.setAllowedHeaders(Arrays.asList("*"));
+            configuration.setAllowCredentials(true); // Учетные данные будут отправляться
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
+            UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+            source.registerCorsConfiguration("/**", configuration);
+            return source;
     }
 }

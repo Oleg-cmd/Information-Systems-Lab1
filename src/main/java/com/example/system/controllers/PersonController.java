@@ -2,9 +2,12 @@ package com.example.system.controllers;
 
 import com.example.system.entities.Person;
 import com.example.system.services.PersonService;
+import com.example.system.implementations.UserDetailsImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,7 +25,8 @@ public class PersonController {
 
     @PostMapping
     public ResponseEntity<Person> createPerson(@RequestBody Person person) {
-        Person createdPerson = personService.createPerson(person);
+        Integer currentUserId = getCurrentUserId();
+        Person createdPerson = personService.createPerson(person, currentUserId);
         return new ResponseEntity<>(createdPerson, HttpStatus.CREATED);
     }
 
@@ -40,16 +44,24 @@ public class PersonController {
 
     @PutMapping("/{id}")
     public ResponseEntity<Person> updatePerson(@PathVariable Integer id, @RequestBody Person updatedPerson) {
-        Person person = personService.updatePerson(id, updatedPerson);
+        Integer currentUserId = getCurrentUserId();
+        Person person = personService.updatePerson(id, updatedPerson, currentUserId);
         return new ResponseEntity<>(person, HttpStatus.OK);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletePerson(@PathVariable Integer id) {
-        personService.deletePerson(id);
+        Integer currentUserId = getCurrentUserId();
+        personService.deletePerson(id, currentUserId);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
-    // Специальные операции (если необходимо)
-    // ...
+    private Integer getCurrentUserId() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getPrincipal() == null || !(auth.getPrincipal() instanceof UserDetailsImpl)) {
+            throw new IllegalStateException("Пользователь не аутентифицирован или данные некорректны");
+        }
+        UserDetailsImpl userDetails = (UserDetailsImpl) auth.getPrincipal();
+        return userDetails.getId(); // Возвращаем ID пользователя
+    }
 }

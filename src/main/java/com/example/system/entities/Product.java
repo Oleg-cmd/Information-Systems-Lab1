@@ -55,6 +55,9 @@ public class Product {
     @JoinColumn(name = "owner_id", nullable = false)
     private Person owner;
 
+    @Column(name = "created_by", nullable = false)
+    private Integer createdBy; // ID пользователя, создавшего адрес
+
     // Конструкторы, геттеры и сеттеры
 
     public Product() {
@@ -149,4 +152,14 @@ public class Product {
     public void setOwner(Person owner) {
         this.owner = owner;
     }
+
+    public Integer getCreatedBy() {
+        return createdBy;
+    }
+
+    public void setCreatedBy(Integer createdBy) {
+        this.createdBy = createdBy;
+    }
 }
+
+

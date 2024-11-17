@@ -1,4 +1,5 @@
 package com.example.system.entities;
+
 import jakarta.persistence.*;
 import javax.validation.constraints.*;
 
@@ -20,6 +21,10 @@ public class Organization {
     @JoinColumn(name = "official_address_id")
     private Address officialAddress; // Поле может быть null
 
+    @ManyToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "postal_address_id")
+    private Address postalAddress; // Поле может быть null
+
     @Positive
     @Column(name = "annual_turnover")
     private Integer annualTurnover; // Поле может быть null, Значение поля должно быть больше 0
@@ -35,19 +40,30 @@ public class Organization {
     @Column(name = "rating")
     private Integer rating; // Поле может быть null, Значение поля должно быть больше 0
 
-    @ManyToOne(cascade = CascadeType.ALL)
-    @JoinColumn(name = "postal_address_id")
-    private Address postalAddress; // Поле может быть null
+    @Column(name = "created_by", nullable = false)
+    private Integer createdBy; // ID пользователя, создавшего адрес
+
+    // Транзитные поля для обработки на уровне сервиса
+    @Transient
+    private Address createOfficialAddress;
+
+    @Transient
+    private Integer linkOfficialAddressId;
+
+    @Transient
+    private Address createPostalAddress;
+
+    @Transient
+    private Integer linkPostalAddressId;
 
     // Конструкторы, геттеры и сеттеры
-
     public Organization() {}
 
-    public int getId() {
+    public Integer getId() {
         return id;
     }
 
-    public void setId(int id) {
+    public void setId(Integer id) {
         this.id = id;
     }
 
@@ -65,6 +81,14 @@ public class Organization {
 
     public void setOfficialAddress(Address officialAddress) {
         this.officialAddress = officialAddress;
+    }
+
+    public Address getPostalAddress() {
+        return postalAddress;
+    }
+
+    public void setPostalAddress(Address postalAddress) {
+        this.postalAddress = postalAddress;
     }
 
     public Integer getAnnualTurnover() {
@@ -99,11 +123,43 @@ public class Organization {
         this.rating = rating;
     }
 
-    public Address getPostalAddress() {
-        return postalAddress;
+    public Address getCreateOfficialAddress() {
+        return createOfficialAddress;
     }
 
-    public void setPostalAddress(Address postalAddress) {
-        this.postalAddress = postalAddress;
+    public void setCreateOfficialAddress(Address createOfficialAddress) {
+        this.createOfficialAddress = createOfficialAddress;
+    }
+
+    public Integer getLinkOfficialAddressId() {
+        return linkOfficialAddressId;
+    }
+
+    public void setLinkOfficialAddressId(Integer linkOfficialAddressId) {
+        this.linkOfficialAddressId = linkOfficialAddressId;
+    }
+
+    public Address getCreatePostalAddress() {
+        return createPostalAddress;
+    }
+
+    public void setCreatePostalAddress(Address createPostalAddress) {
+        this.createPostalAddress = createPostalAddress;
+    }
+
+    public Integer getLinkPostalAddressId() {
+        return linkPostalAddressId;
+    }
+
+    public void setLinkPostalAddressId(Integer linkPostalAddressId) {
+        this.linkPostalAddressId = linkPostalAddressId;
+    }
+
+    public Integer getCreatedBy() {
+        return createdBy;
+    }
+
+    public void setCreatedBy(Integer createdBy) {
+        this.createdBy = createdBy;
     }
 }
