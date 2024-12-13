@@ -17,13 +17,13 @@ public class Organization {
     @Column(name = "name", nullable = false)
     private String name;
 
-    @ManyToOne(cascade = CascadeType.ALL)
+    @ManyToOne(cascade = {CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REMOVE})
     @JoinColumn(name = "official_address_id")
-    private Address officialAddress; // Поле может быть null
+    private Address officialAddress;
 
-    @ManyToOne(cascade = CascadeType.ALL)
+    @ManyToOne(cascade = {CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REMOVE})  // Добавлено CascadeType.REMOVE  и orphanRemoval
     @JoinColumn(name = "postal_address_id")
-    private Address postalAddress; // Поле может быть null
+    private Address postalAddress;
 
     @Positive
     @Column(name = "annual_turnover")
@@ -57,7 +57,8 @@ public class Organization {
     private Integer linkPostalAddressId;
 
     // Конструкторы, геттеры и сеттеры
-    public Organization() {}
+    public Organization() {
+    }
 
     public Integer getId() {
         return id;

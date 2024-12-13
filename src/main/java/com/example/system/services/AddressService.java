@@ -26,11 +26,11 @@ public class AddressService {
     private final OrganizationRepository organizationRepository;
 
     @Autowired
-    public AddressService(AddressRepository addressRepository, 
-                          LocationRepository locationRepository,
-                          UserRepository userRepository,
-                            OrganizationRepository organizationRepository
-                          ) {
+    public AddressService(AddressRepository addressRepository,
+            LocationRepository locationRepository,
+            UserRepository userRepository,
+            OrganizationRepository organizationRepository
+    ) {
         this.addressRepository = addressRepository;
         this.locationRepository = locationRepository;
         this.userRepository = userRepository;
@@ -38,7 +38,7 @@ public class AddressService {
     }
 
     public Address createAddress(Address address, Integer currentUserId) {
-        processLocation(address);
+        processLocation(address, currentUserId);
         address.setCreatedBy(currentUserId); // Устанавливаем ID текущего пользователя
         return addressRepository.save(address);
     }
@@ -59,73 +59,42 @@ public class AddressService {
                         throw new ForbiddenOperationException("У вас нет прав для изменения этого адреса.");
                     }
                     existingAddress.setZipCode(updatedAddress.getZipCode());
-                    processLocation(updatedAddress);
+                    processLocation(updatedAddress, currentUserId);
                     existingAddress.setTown(updatedAddress.getTown());
                     return addressRepository.save(existingAddress);
                 })
                 .orElseThrow(() -> new ResourceNotFoundException("Адрес с ID " + id + " не найден"));
     }
 
+    @Transactional
     public void deleteAddress(Integer id, Integer currentUserId) {
+        // Проверяем, существует ли адрес
         Address address = addressRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Адрес с ID " + id + " не найден"));
 
+        // Проверка прав доступа: только создатель адреса или администратор может его удалить
         if (!address.getCreatedBy().equals(currentUserId) && !isAdmin(currentUserId)) {
             throw new ForbiddenOperationException("У вас нет прав для удаления этого адреса.");
         }
 
-        // Подготовка данных для проверки
-        List<Organization> organizations = organizationRepository.findAllByOfficialAddressIdOrPostalAddressId(id);
-
-        boolean canDeleteAddress = true;
-
-        // Проверяем, используется ли адрес в других организациях
-        for (Organization organization : organizations) {
-            if ((organization.getOfficialAddress() != null && organization.getOfficialAddress().getId().equals(id)) ||
-                (organization.getPostalAddress() != null && organization.getPostalAddress().getId().equals(id))) {
-                if (organizationRepository.countByAddressId(id) > 1) {
-                    canDeleteAddress = false;
-                    break;
-                }
-            }
-        }
-
-        if (!canDeleteAddress) {
-            throw new ForbiddenOperationException("Адрес связан с другими объектами и не может быть удален.");
-        }
-
-        // Убираем связь с организациями
-        for (Organization organization : organizations) {
-            if (organization.getOfficialAddress() != null && organization.getOfficialAddress().getId().equals(id)) {
-                organization.setOfficialAddress(null);
-            }
-            if (organization.getPostalAddress() != null && organization.getPostalAddress().getId().equals(id)) {
-                organization.setPostalAddress(null);
-            }
-            organizationRepository.save(organization);
-        }
-
-        // Удаляем адрес
+        // Удаляем адрес. При наличии каскадного удаления все связанные объекты также будут удалены
         addressRepository.deleteById(id);
     }
 
-
- 
-
-    private void deleteAddressIfUnlinked(Address address) {
-        if (address != null &&
-            addressRepository.countOrganizationsLinkedToAddress(address.getId()) == 0 &&
-            addressRepository.countProductsLinkedToAddress(address.getId()) == 0 &&
-            addressRepository.countLocationsLinkedToAddress(address.getId()) == 0) {
+    private void deleteAddressIfUnlinked(Address address, Integer currentUserId) {
+        if (address != null
+                && addressRepository.countOrganizationsLinkedToAddress(address.getId()) == 0
+                && addressRepository.countProductsLinkedToAddress(address.getId()) == 0
+                && addressRepository.countLocationsLinkedToAddress(address.getId()) == 0) {
             addressRepository.deleteById(address.getId());
         }
     }
 
-
-    private void processLocation(Address address) {
+    private void processLocation(Address address, Integer currentUserId) {
         if (address.getCreateTown() != null) {
             // Создание нового Location
             Location newLocation = locationRepository.save(address.getCreateTown());
+            newLocation.setCreatedBy(currentUserId);
             address.setTown(newLocation);
         } else if (address.getLinkTownId() != null) {
             // Привязка существующего Location
@@ -138,8 +107,8 @@ public class AddressService {
     private boolean isAdmin(Integer userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Пользователь с ID " + userId + " не найден"));
-        
-        if(user.getRole() == User.Role.ADMIN && user.isApproved()){
+
+        if (user.getRole() == User.Role.ADMIN && user.isApproved()) {
             return true;
         }
 

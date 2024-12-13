@@ -4,6 +4,7 @@ import { organizationStore } from "../stores/OrganizationStore";
 import { personStore } from "../stores/PersonStore";
 import { addressStore } from "../stores/AddressStore";
 import { locationStore } from "../stores/LocationStore";
+import importHistoryStore from "../stores/ImportHistoryStore";
 
 const PollingComponent: React.FC = () => {
   useEffect(() => {
@@ -14,6 +15,7 @@ const PollingComponent: React.FC = () => {
       personStore.loadPersons();
       addressStore.loadAddresses();
       locationStore.loadLocations();
+      importHistoryStore.fetchHistory();
     };
 
     // Выполняем начальную загрузку

@@ -1,8 +1,21 @@
 package com.example.system.entities;
 
-import jakarta.persistence.*;
-
 import java.util.Set;
+
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 
 @Entity
 @Table(name = "users")
@@ -35,18 +48,16 @@ public class User {
     private Set<Product> products;
 
     // Конструкторы, геттеры и сеттеры
-
-    public User() {} // Пустой конструктор
+    public User() {
+    } // Пустой конструктор
 
     public Integer getId() {
         return id;
     }
-    
 
     public void setId(Integer id) {
         this.id = id;
     }
-
 
     public String getJwt() {
         return jwt;

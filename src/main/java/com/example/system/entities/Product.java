@@ -1,4 +1,5 @@
 package com.example.system.entities;
+
 import jakarta.persistence.*;
 import javax.validation.constraints.*;
 import java.time.ZonedDateTime;
@@ -29,8 +30,8 @@ public class Product {
     @Column(name = "unit_of_measure")
     private UnitOfMeasure unitOfMeasure;
 
-    @NotNull
-    @ManyToOne(cascade = CascadeType.ALL)
+    // @NotNull
+    @ManyToOne(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     @JoinColumn(name = "manufacturer_id", nullable = false)
     private Organization manufacturer;
 
@@ -50,8 +51,8 @@ public class Product {
     @Column(name = "part_number", unique = true)
     private String partNumber;
 
-    @NotNull
-    @ManyToOne(fetch = FetchType.LAZY)
+    // @NotNull
+    @ManyToOne(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     @JoinColumn(name = "owner_id", nullable = false)
     private Person owner;
 
@@ -59,7 +60,6 @@ public class Product {
     private Integer createdBy; // ID пользователя, создавшего адрес
 
     // Конструкторы, геттеры и сеттеры
-
     public Product() {
         this.creationDate = ZonedDateTime.now();
     }
@@ -161,5 +161,3 @@ public class Product {
         this.createdBy = createdBy;
     }
 }
-
-

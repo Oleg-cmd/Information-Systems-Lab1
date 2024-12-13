@@ -3,6 +3,9 @@ import { toast } from "react-toastify";
 import { makeAutoObservable, runInAction } from "mobx";
 import { Product } from "../types/types";
 import * as productApi from "../api/products";
+import { personSchema, personStore } from "./PersonStore";
+import { organizationSchema, organizationStore } from "./OrganizationStore";
+import userStore from "./UserStore";
 
 // Схема валидации для Product
 const productSchema = yup.object().shape({
@@ -161,6 +164,81 @@ class ProductStore {
   // Установить выбранный продукт
   setSelectedProduct(product: Product | null) {
     this.selectedProduct = product;
+  }
+
+  // Импорт продуктов
+  async importProducts(products: Product[]): Promise<void> {
+    this.loading = true;
+    this.resetError();
+
+    try {
+      const userId = userStore.getUserId();
+      if (userId !== null) {
+        updateCreatedBy(products, userId);
+      }
+
+      for (const product of products) {
+        // Валидация владельца
+        await personSchema.validate(product.owner, { abortEarly: false });
+
+        // Валидация производителя
+        await organizationSchema.validate(product.manufacturer, {
+          abortEarly: false,
+        });
+
+        // Валидация продукта
+        await productSchema.validate(product, { abortEarly: false });
+      }
+
+      console.log("all is ok");
+
+      const result = await productApi.importProduct(products);
+      if (result) {
+        toast.success("Продукты успешно импортированы");
+      } else {
+        toast.success("Произошла ошибка при импорте продуктов");
+      }
+    } catch (error) {
+      if (error instanceof yup.ValidationError) {
+        // Обрабатываем ошибки валидации
+        runInAction(() => {
+          this.error = "Ошибка валидации данных продукта";
+        });
+        toast.error("Ошибка валидации данных продукта");
+
+        // Логируем все ошибки валидации
+        console.error("Ошибки валидации:", error.inner);
+
+        // Выводим подробности для каждой ошибки
+        error.inner.forEach((err) => {
+          console.error(`Ошибка в поле "${err.path}": ${err.message}`);
+        });
+
+        const validationErrors = error.inner
+          .map((err) => `${err.path}: ${err.message}`)
+          .join(", ");
+        toast.error(`Ошибки валидации: ${validationErrors}`);
+      }
+    } finally {
+      runInAction(() => {
+        this.loading = false;
+      });
+    }
+  }
+}
+
+function updateCreatedBy(data: any, userId: number): void {
+  console.log(`userId: ${userId}`);
+  if (Array.isArray(data)) {
+    data.forEach((item) => updateCreatedBy(item, userId));
+  } else if (typeof data === "object" && data !== null) {
+    for (const key in data) {
+      if (key === "createdBy") {
+        data[key] = userId;
+      } else if (typeof data[key] === "object" && data[key] !== null) {
+        updateCreatedBy(data[key], userId);
+      }
+    }
   }
 }
 

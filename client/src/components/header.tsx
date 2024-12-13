@@ -18,6 +18,7 @@ interface HeaderProps {
       | "special"
       | "admin"
       | "visual"
+      | "history"
   ) => void;
 }
 
@@ -119,6 +120,14 @@ export const HeaderComponent: React.FC<HeaderProps> = observer(
                     onClick={() => onChangeTable("visual")}
                   >
                     Визуализация
+                  </button>
+                </li>
+                <li>
+                  <button
+                    className='hover:underline'
+                    onClick={() => onChangeTable("history")}
+                  >
+                    История
                   </button>
                 </li>
                 {userStore.user?.role === "ADMIN" && (

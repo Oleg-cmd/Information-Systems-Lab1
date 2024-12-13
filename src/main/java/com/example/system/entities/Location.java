@@ -1,10 +1,16 @@
 package com.example.system.entities;
+
 import jakarta.persistence.*;
+
 import javax.validation.constraints.*;
 
+import lombok.ToString;
+
+@ToString
 @Entity
 @Table(name = "locations")
 public class Location {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
@@ -24,8 +30,8 @@ public class Location {
     private Integer createdBy; // ID пользователя, создавшего адрес
 
     // Конструкторы, геттеры и сеттеры
-
-    public Location() {}
+    public Location() {
+    }
 
     // Конструктор с аргументами
     public Location(Long x, Integer y, Double z) {
@@ -33,7 +39,6 @@ public class Location {
         this.y = y;
         this.z = z;
     }
-
 
     public int getId() {
         return id;

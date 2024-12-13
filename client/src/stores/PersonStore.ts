@@ -10,7 +10,7 @@ import {
 import { Person } from "../types/types";
 
 // Схема валидации для Person
-const personSchema = yup.object().shape({
+export const personSchema = yup.object().shape({
   name: yup
     .string()
     .required("Имя обязательно")
@@ -85,7 +85,7 @@ export class PersonStore {
   }
 
   // Создание владельца
-  async createPerson(person: Omit<Person, "id">): Promise<void> {
+  async createPerson(person: Omit<Person, "id">): Promise<any> {
     this.resetError();
     try {
       // Валидация перед созданием
@@ -96,6 +96,7 @@ export class PersonStore {
         this.persons.push(newPerson);
       });
       toast.success("Владелец успешно создан");
+      return newPerson;
     } catch (error) {
       if (error instanceof yup.ValidationError) {
         toast.error(`Ошибка валидации: ${error.errors.join(", ")}`);

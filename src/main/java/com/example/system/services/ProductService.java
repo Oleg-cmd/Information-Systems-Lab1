@@ -1,29 +1,33 @@
 package com.example.system.services;
 
-import com.example.system.entities.Product;
-import com.example.system.entities.UnitOfMeasure;
-import com.example.system.entities.User;
-import com.example.system.entities.Address;
-import com.example.system.entities.Organization;
-import com.example.system.entities.Person;
-import com.example.system.exceptions.ForbiddenOperationException;
-import com.example.system.exceptions.ResourceNotFoundException;
-import com.example.system.repositories.ProductRepository;
-import com.example.system.repositories.PersonRepository;
-import com.example.system.repositories.UserRepository;
-import com.example.system.repositories.OrganizationRepository;
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.example.system.repositories.*;
 
-
-import java.util.List;
+import com.example.system.entities.Address;
+import com.example.system.entities.Organization;
+import com.example.system.entities.Person;
+import com.example.system.entities.Product;
+import com.example.system.entities.UnitOfMeasure;
+import com.example.system.entities.User;
+import com.example.system.exceptions.ForbiddenOperationException;
+import com.example.system.exceptions.ResourceNotFoundException;
+import com.example.system.repositories.AddressRepository;
+import com.example.system.repositories.LocationRepository;
+import com.example.system.repositories.OrganizationRepository;
+import com.example.system.repositories.PersonRepository;
+import com.example.system.repositories.ProductRepository;
+import com.example.system.repositories.UserRepository;
 
 @Service
 @Transactional
 public class ProductService {
 
+    private static final Logger logger = LoggerFactory.getLogger(OrganizationService.class);
     private final ProductRepository productRepository;
     private final OrganizationRepository organizationRepository;
     private final PersonRepository personRepository;
@@ -31,15 +35,14 @@ public class ProductService {
     private final LocationRepository locationRepository;
     private final AddressRepository addressRepository;
 
-
     @Autowired
     public ProductService(ProductRepository productRepository,
-                          OrganizationRepository organizationRepository,
-                          PersonRepository personRepository,
-                          UserRepository userRepository,
-                          LocationRepository locationRepository,
-                          AddressRepository addressRepository
-                          ) {
+            OrganizationRepository organizationRepository,
+            PersonRepository personRepository,
+            UserRepository userRepository,
+            LocationRepository locationRepository,
+            AddressRepository addressRepository
+    ) {
         this.productRepository = productRepository;
         this.organizationRepository = organizationRepository;
         this.personRepository = personRepository;
@@ -49,9 +52,15 @@ public class ProductService {
     }
 
     public Product createProduct(Product product, Integer currentUserId) {
+        logger.info("creating product");
         product.setCreatedBy(currentUserId); // Set creator ID
-        validateProduct(product);
-        return productRepository.save(product);
+        logger.info("setupped product created by");
+        // validateProduct(product);
+        logger.info("product saving");
+        Product current = productRepository.save(product);
+        logger.info("product saved");
+
+        return current;
     }
 
     public List<Product> getAllProducts() {
@@ -92,77 +101,10 @@ public class ProductService {
             throw new ForbiddenOperationException("У вас нет прав для удаления этого продукта.");
         }
 
-        // Проверяем владельца продукта (Person)
-        Person owner = product.getOwner();
-        boolean shouldDeleteOwner = false;
-        boolean shouldDeleteOwnerLocation = false;
-
-        if (owner != null) {
-            shouldDeleteOwner = productRepository.countByOwnerId(owner.getId()) == 1;
-            if (shouldDeleteOwner && owner.getLocation() != null) {
-                shouldDeleteOwnerLocation = locationRepository.countPersonsLinkedToLocation(owner.getLocation().getId()) == 1 &&
-                                            locationRepository.countOrganizationsLinkedToLocation(owner.getLocation().getId()) == 0;
-            }
-        }
-
-        // Проверяем производителя продукта (Organization)
-        Organization manufacturer = product.getManufacturer();
-        boolean shouldDeleteManufacturer = false;
-        boolean shouldDeleteOfficialAddress = false;
-        boolean shouldDeletePostalAddress = false;
-
-        Address officialAddress = null;
-        Address postalAddress = null;
-
-        if (manufacturer != null) {
-            shouldDeleteManufacturer = productRepository.countByManufacturerId(manufacturer.getId()) == 1;
-            if (shouldDeleteManufacturer) {
-                officialAddress = manufacturer.getOfficialAddress();
-                postalAddress = manufacturer.getPostalAddress();
-
-                if (officialAddress != null) {
-                    shouldDeleteOfficialAddress = organizationRepository.countByAddressId(officialAddress.getId()) == 1 &&
-                                                addressRepository.countProductsLinkedToAddress(officialAddress.getId()) == 0;
-                }
-                if (postalAddress != null) {
-                    shouldDeletePostalAddress = organizationRepository.countByAddressId(postalAddress.getId()) == 1 &&
-                                                addressRepository.countProductsLinkedToAddress(postalAddress.getId()) == 0;
-                }
-            }
-        }
-
-        // Убираем связи с продуктом
-        product.setOwner(null);
-        product.setManufacturer(null);
-        productRepository.save(product);
-
-        // Удаляем сам продукт
-        productRepository.deleteById(id);
-
-        // Удаляем владельца, если нужно
-        if (shouldDeleteOwner) {
-            if (shouldDeleteOwnerLocation) {
-                locationRepository.deleteById(owner.getLocation().getId());
-            }
-            personRepository.deleteById(owner.getId());
-        }
-
-        // Удаляем производителя, если нужно
-        if (shouldDeleteManufacturer) {
-            if (shouldDeleteOfficialAddress) {
-                addressRepository.deleteById(officialAddress.getId());
-            }
-            if (shouldDeletePostalAddress) {
-                addressRepository.deleteById(postalAddress.getId());
-            }
-            organizationRepository.deleteById(manufacturer.getId());
-        }
+        productRepository.deleteById(id); // JPA автоматически обработает каскадное удаление
     }
 
-
-
-
-     // Special operations:
+    // Special operations:
     public long countByPartNumber(String partNumber) {
         return productRepository.countByPartNumber(partNumber);
     }
@@ -179,9 +121,7 @@ public class ProductService {
         return productRepository.findByUnitOfMeasure(unitOfMeasure);
     }
 
-
     // Остальные методы остаются без изменений
-
     private void validateProduct(Product product) {
         if (product.getName() == null || product.getName().isEmpty()) {
             throw new IllegalArgumentException("Название продукта не может быть пустым");

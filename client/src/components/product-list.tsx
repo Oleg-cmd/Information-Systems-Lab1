@@ -18,6 +18,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { ProductModalComponent } from "./product-modal";
 import { toJS } from "mobx";
 import moment from "moment";
+import { FileImportPopupComponent } from "./file-import-popup";
+import { Upload } from "lucide-react";
 
 export const ProductList = observer(() => {
   const [currentPage, setCurrentPage] = useState(1);
@@ -97,6 +99,19 @@ export const ProductList = observer(() => {
     setIsModalOpen(false);
   };
 
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const handleImportProducts = async (file: File) => {
+    try {
+      const content = await file.text();
+      const products = JSON.parse(content);
+      // Assuming your ProductStore has a method to import multiple products
+      await productStore.importProducts(products);
+    } catch (error) {
+      console.error("Error importing products:", error);
+      // Here you might want to show an error message to the user
+    }
+  };
+
   return (
     <>
       <Card className='w-full'>
@@ -111,7 +126,16 @@ export const ProductList = observer(() => {
               onChange={(e) => setFilterName(e.target.value)}
               className='max-w-sm'
             />
-            <Button onClick={handleCreateProduct}>Создать продукт</Button>
+            <div className='flex items-center'>
+              <Button onClick={handleCreateProduct}>Создать продукт</Button>
+              <Button
+                onClick={() => setIsImportModalOpen(true)}
+                variant='outline'
+                className='ml-4'
+              >
+                <Upload className='mr-2 h-4 w-4' /> Импорт
+              </Button>
+            </div>
           </div>
           <Table>
             <TableHeader>
@@ -214,6 +238,11 @@ export const ProductList = observer(() => {
         onClose={() => setIsModalOpen(false)}
         onSave={handleSaveProduct}
         product={toJS(selectedProduct)}
+      />
+      <FileImportPopupComponent
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImport={handleImportProducts}
       />
     </>
   );

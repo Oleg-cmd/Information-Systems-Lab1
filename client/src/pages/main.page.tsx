@@ -11,6 +11,7 @@ import SpecialOperationsPage from "../components/SpecialOperations";
 import AdminApprovalPage from "../components/AdminApprovePage";
 import PollingComponent from "../components/PollingComponents";
 import GraphVisualization from "../components/GraphVisualization";
+import ImportHistoryPage from "../components/import-history-page";
 
 export const MainPage: React.FC = observer(() => {
   const [currentTable, setCurrentTable] = useState<
@@ -22,6 +23,7 @@ export const MainPage: React.FC = observer(() => {
     | "special"
     | "admin"
     | "visual"
+    | "history"
   >("products");
 
   const renderTable = () => {
@@ -42,6 +44,8 @@ export const MainPage: React.FC = observer(() => {
         return <AdminApprovalPage />;
       case "visual":
         return <GraphVisualization />;
+      case "history":
+        return <ImportHistoryPage />;
       default:
         return null;
     }

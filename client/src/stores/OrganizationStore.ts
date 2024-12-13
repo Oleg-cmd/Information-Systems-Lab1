@@ -10,7 +10,7 @@ import {
 import { Organization } from "../types/types";
 
 // Определяем схему валидации для Organization
-const organizationSchema = yup.object().shape({
+export const organizationSchema = yup.object().shape({
   name: yup
     .string()
     .required("Название организации обязательно")
@@ -68,7 +68,7 @@ export class OrganizationStore {
   }
 
   // Создать организацию
-  async createOrganization(org: Omit<Organization, "id">): Promise<void> {
+  async createOrganization(org: Omit<Organization, "id">): Promise<any> {
     this.resetError();
     try {
       // Валидация перед созданием
@@ -79,6 +79,8 @@ export class OrganizationStore {
         this.organizations.push(newOrganization);
       });
       toast.success("Организация успешно создана");
+
+      return newOrganization;
     } catch (error) {
       if (error instanceof yup.ValidationError) {
         toast.error(`Ошибка валидации: ${error.errors.join(", ")}`);

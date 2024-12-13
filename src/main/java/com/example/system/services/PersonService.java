@@ -1,5 +1,13 @@
 package com.example.system.services;
 
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.example.system.entities.Location;
 import com.example.system.entities.Person;
 import com.example.system.entities.User;
@@ -8,16 +16,12 @@ import com.example.system.exceptions.ResourceNotFoundException;
 import com.example.system.repositories.LocationRepository;
 import com.example.system.repositories.PersonRepository;
 import com.example.system.repositories.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Service
 @Transactional
 public class PersonService {
 
+    private static final Logger logger = LoggerFactory.getLogger(OrganizationService.class);
     private final PersonRepository personRepository;
     private final LocationRepository locationRepository;
     private final UserRepository userRepository;
@@ -31,7 +35,7 @@ public class PersonService {
 
     public Person createPerson(Person person, Integer currentUserId) {
         person.setCreatedBy(currentUserId); // Set creator ID
-        processLocation(person);
+        processLocation(person, currentUserId);
         validatePerson(person);
         return personRepository.save(person);
     }
@@ -46,7 +50,7 @@ public class PersonService {
     }
 
     public Person updatePerson(Integer id, Person updatedPerson, Integer currentUserId) {
-        processLocation(updatedPerson);
+        processLocation(updatedPerson, currentUserId);
         validatePerson(updatedPerson);
         return personRepository.findById(id)
                 .map(person -> {
@@ -72,36 +76,35 @@ public class PersonService {
             throw new ForbiddenOperationException("У вас нет прав для удаления этого человека.");
         }
 
-        // Получаем связанную локацию
-        Location location = person.getLocation();
-
-        // Проверяем и удаляем локацию, если она больше ни с чем не связана
-        boolean shouldDeleteLocation = location != null &&
-                                    locationRepository.countPersonsLinkedToLocation(location.getId()) == 1 &&
-                                    locationRepository.countOrganizationsLinkedToLocation(location.getId()) == 0;
-
         // Удаляем человека
         personRepository.deleteById(id);
-
-        // Удаляем локацию, если нужно
-        if (shouldDeleteLocation) {
-            locationRepository.deleteById(location.getId());
-        }
     }
 
-
-
-    private void processLocation(Person person) {
+    private Location processLocation(Person person, Integer currentUserId) {
+        logger.info("proccessing location");
         if (person.getCreateLocation() != null) {
-            // Create a new location
-            Location newLocation = locationRepository.save(person.getCreateLocation());
-            person.setLocation(newLocation);
+            // Create a new location    
+            logger.info("Create a new location for person");
+
+            Location newLocation = person.getCreateLocation();
+            newLocation.setCreatedBy(currentUserId);
+
+            logger.info("prepared for saving");
+
+            locationRepository.save(newLocation);
+
+            logger.info("saved");
+
+            return newLocation;
+
         } else if (person.getLinkLocationId() != null) {
             // Link to an existing location
-            Location existingLocation = locationRepository.findById(person.getLinkLocationId())
+            return locationRepository.findById(person.getLinkLocationId())
                     .orElseThrow(() -> new ResourceNotFoundException("Локация с ID " + person.getLinkLocationId() + " не найдена"));
-            person.setLocation(existingLocation);
+
         }
+        logger.info("not found");
+        return null;
     }
 
     private void validatePerson(Person person) {
@@ -119,14 +122,18 @@ public class PersonService {
         }
     }
 
-     private boolean isAdmin(Integer userId) {
+    private boolean isAdmin(Integer userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Пользователь с ID " + userId + " не найден"));
-        
-        if(user.getRole() == User.Role.ADMIN && user.isApproved()){
+
+        if (user.getRole() == User.Role.ADMIN && user.isApproved()) {
             return true;
         }
 
         return false;
+    }
+
+    public void flush() {
+        personRepository.flush();
     }
 }

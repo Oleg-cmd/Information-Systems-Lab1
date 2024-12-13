@@ -12,6 +12,20 @@ export const createProduct = async (product: Product) => {
   }
 };
 
+// import product
+export const importProduct = async (products: Product[]) => {
+  try {
+    const response = await axiosInstance.post(
+      "/import/bulk-products",
+      products
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Ошибка при импорте продукта:", error);
+    throw error;
+  }
+};
+
 // Обновить продукт
 export const updateProduct = async (id: number, product: Product) => {
   try {
